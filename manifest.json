@@ -1,0 +1,13 @@
+{
+	"BundleType": "Application",
+	"BundleIdentifier": "two22",
+	"AppIcon": {
+		"36x18": "tutorial.png"
+	},
+	"AppName": {
+		"en": "Two22"
+	},
+	"SupportedLanguages": [
+		"en"
+	]
+}
