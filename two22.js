@@ -8,6 +8,13 @@ function init() {
 	searchTrack('spotify:track:3rbNV2GI8Vtd8byhUtXZID');
 }
 
+function searchButtonClicked() {
+	var uri = document.getElementById('uri');
+	if (uri.value != '')
+		clearHTML();
+		searchTrack(uri.value);
+}
+
 //TODO: Ensure that there are no repeated playlists after merging track, artist, album results
 function searchTrack(uri) {
 	var t = models.Track.fromURI(uri,function(track){
@@ -88,4 +95,12 @@ function addTrackHTML(track) {
    	link.appendChild(a);
    	a.innerHTML = track.name;
    	info.appendChild(link);
+}
+
+function clearHTML() {
+	resultsList = document.getElementById('results');
+	info = document.getElementById('trackInfo');
+	
+	resultsList.innerHTML = '';
+	info.innerHTML = '';
 }
