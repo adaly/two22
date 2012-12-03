@@ -5,7 +5,8 @@ exports.init = init;
 
 function init() {
 	//searchPlaylists('Clique');
-	searchTrack('spotify:track:3rbNV2GI8Vtd8byhUtXZID');
+	//searchTrack('spotify:track:3rbNV2GI8Vtd8byhUtXZID');
+	searchTrack('spotify:track:4JnQx0xYuoXdkNHe0dt0oR');
 }
 
 function searchButtonClicked() {
@@ -103,4 +104,6 @@ function clearHTML() {
 	
 	resultsList.innerHTML = '';
 	info.innerHTML = '';
+	console.log(resultsList);
+	console.log(info);
 }
