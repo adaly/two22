@@ -62,9 +62,9 @@ function searchPlaylists(keyword,trackURI) {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0) {
    				console.log(playlist.name,playlist.data.subscriberCount,"subscribers");
-   				if (results.indexOf(playlist.uri) < 0) {
+   				if (results.indexOf(playlist) < 0) {
    					addPlaylistHTML(playlist);
-   					results.push(playlist.uri);
+   					analyzePlaylist(playlist);
    				}
    			}
   		});
@@ -107,4 +107,25 @@ function clearHTML() {
 	info.innerHTML = '';
 	console.log(resultsList);
 	console.log(info);
+}
+
+// goes through each playlist and adds the tracks 
+function analyzePlaylist(playlist)
+{
+	var length = playlist.length;	
+	for (var i = 0; i < length; i++)
+	{
+		var track = playlist.get(i);
+
+		if(scores[track.uri] == null)
+		{
+			scores[track.uri] = 1;
+		}
+		else
+		{
+			scores[track.uri]++; 
+		}
+	}
+	var label = document.getElementById('scores');
+	label.innerHTML = "Get here"
 }
