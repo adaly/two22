@@ -32,22 +32,22 @@ function searchTrack(uri)
 {
 	var t = models.Track.fromURI(uri,function(track){
 		//Search by name
-		console.log('Track loaded:', track.name);
+		console.log('Search by track name:', track.name);
 		searchPlaylists(track.name,uri);
-		
+
 		track.data.artists.forEach(function(artist) 
 		{
 			//Search by artist
-			console.log(artist.name);
+			console.log('Search by artist:', artist.name);
 			if (artist.name != track.name)
 				searchPlaylists(artist.name, uri);
 		});
-		
+
 		//Search by album
-		console.log('Album:',track.data.album.name);
+		console.log('Search by album:',track.data.album.name);
 		if (track.data.album.name != track.name)
 			searchPlaylists(track.data.album.name, uri);
-		
+
 		addTrackHTML(track);
 	});
 }
@@ -62,19 +62,17 @@ function searchPlaylists(keyword, trackURI)
 {
 	var search = new models.Search(keyword);
 	search.localResults = models.LOCALSEARCHRESULTS.IGNORE
-	
+
 	search.searchAlbums = false;
 	search.searchArtists = false;
 	search.searchTracks = false;
 	search.pageSize = 50;
-		
+
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0) {
-  				console.log("Has song:",playlist.name);
    				if (stored_playlists[playlist.uri] == null) 
    				{
-   					console.log("First time:",playlist.name);
    					addPlaylistHTML(playlist);
    					analyzePlaylist(playlist);
    					stored_playlists[playlist.uri] = true;
@@ -91,7 +89,7 @@ function searchPlaylists(keyword, trackURI)
 function addPlaylistHTML(playlist) 
 {
 	resultsList = document.getElementById('results');
-	
+
 	var link = document.createElement('li');
    	var a = document.createElement('a');
    	a.href = playlist.uri;
@@ -115,7 +113,7 @@ function addTrackHTML(track)
 function clearHTML() {
 	resultsList = document.getElementById('results');
 	info = document.getElementById('trackInfo');
-	
+
 	resultsList.innerHTML = '';
 	info.innerHTML = '';
 	console.log(resultsList);
@@ -133,42 +131,44 @@ function TrackScore(trackName, score)
 // goes through each playlist and adds the tracks 
 function analyzePlaylist(playlist)
 {
-	console.log("Analyze:",playlist.name);
+	console.log("Analyzing:",playlist.name);
 	label = document.getElementById('scores');
 
 	var length = playlist.length;	
 	for (var i = 0; i < length; i++)
 	{
 		var track = playlist.get(i);
-
-		if(stored_playlists[track.uri] == null)
+		if(track.uri.substring(0, 12) == "spotify:user")
+			console.log("WEIRD PLAYLIST GETS IN", track.uri);
+		if(track_scores[track.uri] == null)
 		{
-			stored_playlists[track.uri] = new TrackScore(track.name, 1);
+			track_scores[track.uri] = new TrackScore(track.name, 1);
 		}
 		else
 		{
-			stored_playlists[track.uri].addScore(); 
+			track_scores[track.uri].addScore(); 
 		}
 	}
+	console.log("Done analyzing");
 }
 
 // goes through the stored songs and scores them
 function scoreTracks()
 {
 	label = document.getElementById('scores');
-
-	for (var key in stored_playlists)
+	
+	for (var key in track_scores)
 	{
-		if(stored_playlists.hasOwnProperty(key))
+		if(track_scores.hasOwnProperty(key))
 		{
-			var trackscore = stored_playlists[key];
+			console.log("Key", key);
+			var trackscore = track_scores[key];
 			if(trackscore != null)
 			{
 				var text = document.createElement('p');
 				text.innerHTML = trackscore.getName + " " + trackscore.getScore;
 				label.appendChild(text);
 			}
-		}
+		}	
 	}
 }
-
