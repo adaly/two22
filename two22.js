@@ -156,7 +156,7 @@ function analyzePlaylist(playlist)
 function scoreTracks()
 {
 	label = document.getElementById('scores');
-	
+
 	for (var key in track_scores)
 	{
 		if(track_scores.hasOwnProperty(key))
@@ -165,9 +165,12 @@ function scoreTracks()
 			var trackscore = track_scores[key];
 			if(trackscore != null)
 			{
-				var text = document.createElement('p');
-				text.innerHTML = trackscore.getName + " " + trackscore.getScore;
-				label.appendChild(text);
+				var link = document.createElement('li');
+			   	var a = document.createElement('a');
+			   	a.href = key;
+			   	link.appendChild(a);
+			   	a.innerHTML = trackscore.getName + " " + trackscore.getScore;
+			   	label.appendChild(link);
 			}
 		}	
 	}
