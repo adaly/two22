@@ -15,15 +15,99 @@ function init()
 	var uri = document.getElementById('uri');
 	uri.value = track.uri;
 	searchButtonClicked();
+	
+	var x1 = new Array("A","B","C","D");
+	var x2 = new Array("D","F","E","C");
+	var x3 = new Array("B","E","F","A");
+	var x4 = new Array("B","C","D","E");
+	var x5 = new Array("C","F","A","B");
+	var x6 = new Array("A","E","F","D");
+	var lists = new Array(x1,x2,x3,x4,x5,x6);
+	
+	console.log(markovStep("B",lists,4));
+}
+
+function markovStep(item,lists,type)
+{
+	// MC1 method from Dwork et. al.
+	if (type == 1) {
+		var nlists = 0; var totalrank = 0;
+		var songs = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0) {
+				nlists += 1; 
+				totalrank += (list.indexOf(item)+1);
+				for (var i=0; i<list.indexOf(item); i++)
+					if (songs.indexOf(list[i]) == -1)
+						songs.push(list[i]);
+			}
+		});
+		//console.log(songs);
+		// Stay on current page with probability proportional to avg. rank
+		if (songs.length == 0 || Math.random()<=1/(totalrank/nlists))
+			return item;
+		return songs[Math.floor(Math.random()*songs.length)];
+	}
+	// MC2 and MC3 method
+	if (type == 2 || type == 3) {
+		var pluslists = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0)
+				pluslists.push(list);
+		});
+		if (pluslists.length == 0)
+			return item;
+		var chosen = pluslists[Math.floor(Math.random()*pluslists.length)];
+		//console.log(chosen);
+		if (type == 2)
+			return chosen[Math.floor(Math.random()*(chosen.indexOf(item)+1))];
+		if (type == 3) {
+			randsong = chosen[Math.floor(Math.random()*(chosen.length))];
+			//console.log(randsong);
+			if (chosen.indexOf(randsong) < chosen.indexOf(item))
+				return randsong;
+			return item;
+		}
+	}
+	if (type == 4) {
+		var songs = new Array();
+		var counts = new Array();
+		var wins = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0) {
+				list.forEach(function(song) {
+					if (song != item) { 
+						if (songs.indexOf(song) < 0) {
+							songs.push(song);
+							counts.push(0);
+							wins.push(0);
+						}
+						counts[songs.indexOf(song)] += 1;
+						if (list.indexOf(song) < list.indexOf(item))
+							wins[songs.indexOf(song)] += 1;
+					}
+				});
+			}
+		});
+		//console.log(songs);
+		//console.log(counts);
+		//console.log(wins);
+		randint = Math.floor(Math.random()*songs.length);
+		//console.log(songs[randint]);
+		if (wins[randint]/counts[randint] > 0.5)
+			return songs[randint];
+		return item;
+	}
 }
 
 function searchButtonClicked() 
 {
 	var uri = document.getElementById('uri');
-	if (uri.value != '')
+	if (uri.value != '') {
 		clearHTML();
 		searchTrack(uri.value);
-		scoreTracks();
+		//scoreTracks();
+	}
 }
 
 //TODO: Ensure that there are no repeated playlists after merging track, artist, album results
@@ -65,14 +149,13 @@ function searchPlaylists(keyword, trackURI)
 	search.searchAlbums = false;
 	search.searchArtists = false;
 	search.searchTracks = false;
-	search.pageSize = 50;
+	search.pageSize = 100;
 
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0) {
    				console.log(playlist.data.getTrackAddTime(0));
-   				if (stored_playlists[playlist.uri] == null) 
-   				{
+   				if (stored_playlists[playlist.uri] == null) {
    					addPlaylistHTML(playlist);
    					analyzePlaylist(playlist);
    					stored_playlists[playlist.uri] = true;
