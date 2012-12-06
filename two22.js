@@ -5,8 +5,7 @@ exports.init = init;
 
 function init() {
 	//searchPlaylists('Clique');
-	//searchTrack('spotify:track:3rbNV2GI8Vtd8byhUtXZID');
-	searchTrack('spotify:track:4JnQx0xYuoXdkNHe0dt0oR');
+	searchTrack('spotify:track:3rbNV2GI8Vtd8byhUtXZID');
 }
 
 function searchButtonClicked() {
@@ -60,7 +59,7 @@ function searchPlaylists(keyword,trackURI) {
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0) {
-   				console.log(playlist.name,playlist.data.subscriberCount,"subscribers");
+   				console.log(playlist.data.getTrackAddTime(0));
    				if (results.indexOf(playlist.uri) < 0) {
    					addPlaylistHTML(playlist);
    					results.push(playlist.uri);
