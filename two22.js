@@ -24,7 +24,33 @@ function init()
 	var x6 = new Array("A","E","F","D");
 	var lists = new Array(x1,x2,x3,x4,x5,x6);
 	
-	console.log(markovStep("B",lists,4));
+	//console.log(markovStep("B",lists,4));
+	rankAggregation(lists,1,100000);
+}
+
+function rankAggregation(lists,type,iter)
+{
+	var songs = new Array();
+	lists.forEach(function(list) {
+		list.forEach(function(song) {
+			if (songs.indexOf(song) == -1)
+				songs.push(song);
+		});
+	});
+	var counts = new Array();
+	for (var i=0; i<songs.length; i++)
+		counts.push(0);
+	for (var i=0; i<iter; i++) {
+		var seed = songs[Math.floor(Math.random()*songs.length)];
+		var end = markovStep(seed,lists,type);
+		counts[songs.indexOf(end)] += 1;
+	}
+	console.log(songs);
+	console.log(counts);
+	var sorted = counts.slice(0).sort();
+	sorted.forEach(function(entry){
+		console.log(songs[counts.indexOf(entry)]);
+	});
 }
 
 function markovStep(item,lists,type)
