@@ -265,9 +265,10 @@ function clearHTML() {
 }
 
 // Object to store track
-function TrackScore(trackName, score) 
+function TrackScore(trackName, trackUri, score) 
 {
 	this.getName = trackName;
+	this.getUri = trackUri;
 	this.getScore = score;
 	this.addScore = function() { this.getScore++; }
 }
@@ -281,12 +282,9 @@ function analyzePlaylist(playlist)
 	var length = playlist.length;	
 	for (var i = 0; i < length; i++)
 	{
-		var track = playlist.get(i);
-		if(track.uri.substring(0, 12) == "spotify:user")
-			console.log("WEIRD PLAYLIST GETS IN", track.uri);
 		if(track_scores[track.uri] == null)
 		{
-			track_scores[track.uri] = new TrackScore(track.name, 1);
+			track_scores[track.uri] = new TrackScore(track.name, track.uri, 1);
 		}
 		else
 		{
@@ -301,21 +299,30 @@ function scoreTracks()
 {
 	label = document.getElementById('scores');
 
+	var results = []
+
 	for (var key in track_scores)
 	{
 		if(track_scores.hasOwnProperty(key))
 		{
-			console.log("Key", key);
-			var trackscore = track_scores[key];
-			if(trackscore != null)
-			{
-				var link = document.createElement('li');
-			   	var a = document.createElement('a');
-			   	a.href = key;
-			   	link.appendChild(a);
-			   	a.innerHTML = trackscore.getName + " " + trackscore.getScore;
-			   	label.appendChild(link);
-			}
+			results.push(track_scores[key]);
 		}	
 	}
+
+	results.sort(function(a, b) {return b.getScore - a.getScore;})
+
+	var length = results.length;
+
+	for(int i = 0; i < length; i++)
+	{
+		var trackscore = results[i];
+
+		var link = document.createElement('li');
+	   	var a = document.createElement('a');
+	   	a.href = trackscore.getUri;
+	   	link.appendChild(a);
+	   	a.innerHTML = trackscore.getName + " " + trackscore.getScore;
+	   	label.appendChild(link);
+	}
 }
+
