@@ -48,7 +48,7 @@ function searchButtonClicked()
 		playlists.forEach(function(pl){
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
-		rankAggregation(lists,2,100000);
+		rankAggregation(lists,3,100000);
 	}
 }
 
@@ -106,7 +106,7 @@ function searchPlaylists(keyword, trackURI)
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0 && playlist.length > 1) {
-   				console.log(playlist.data.getTrackAddTime(0));
+   				//console.log(playlist.data.getTrackAddTime(0));
    				if (stored_playlists[playlist.uri] == null) {
    					addPlaylistHTML(playlist);
    					//analyzePlaylist(playlist);
@@ -247,6 +247,54 @@ function markovStep(item,lists,type)
 			return songs[randint];
 		return item;
 	}
+}
+
+function transitionMatrix(lists,type)
+{
+	var moves = new Array();
+	/*if (type == 1) {
+		lists.forEach(function(list){
+			list.forEach(function(song){
+				if (moves[song] == null)
+					moves[song] = new Array();
+				}
+				for (var i=0; i<list.indexOf(song); i++) {
+					if (moves[song].indexOf(list[i]) < 0)
+						moves[song].push(list[i]);
+				}
+			});
+		});
+	}
+	if (type == 2) {
+		var wins = new Array();
+		var counts = new Array();
+		lists.forEach(function(list){
+			list.forEach(function(song){
+				if (wins[song] == null){
+					wins[song] = new Array();
+					counts[song] = new Array();
+				}
+				list.forEach(function(competitor){
+					if (competitor != song) {
+						if (counts[song][competitor] == null){
+							counts[song][competitor] = 0;
+							wins[song][competitor] = 0;
+						}
+						counts[song][competitor] += 1;
+						if (list.indexOf(competitor) < list.indexOf(song))
+							wins[song][competitor] += 1;
+					}
+				});
+			});
+		});
+		for (var song in wins) {
+			moves[song] = new Array();
+			for (var competitor in wins[song]) {
+				moves[song][competitor] = wins[song][competitor]/counts[song][competitor];
+			}
+		}
+	}*/
+	return moves;
 }
 
 /*
