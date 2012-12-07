@@ -27,9 +27,13 @@ function init()
 	//console.log(markovStep("B",lists,4));
 	//rankAggregation(lists,1,100000);
 	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
-	//var dist = markovChain(lists,3,100);
-	//for (var key in dist)
-	//	console.log("Song: "+key+" Relevance: "+dist[key]);
+
+	/*var tm = transitionMatrix(lists,1);
+	for (var key in tm)
+		console.log(key+" : "+tm[key]);
+	var dist = markovChain(lists,1,1);
+	for (var key in dist)
+		console.log("Song: "+key+" Relevance: "+dist[key]);*/
 }
 
 /*
@@ -52,7 +56,7 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
 		//rankAggregation(lists,3,100000);
-		var dist = markovChain(lists,3,100);
+		var dist = markovChain(lists,1,10);
 		for (var key in dist)
 			console.log("Song: "+key+" Relevance: "+dist[key]);
 	}
@@ -132,9 +136,9 @@ function searchPlaylists(keyword, trackURI)
  * RANK AGGREGATION CODE
  *
  * orderPlaylist(playlistURI,trackURI)
- * rankAggregation(lists,type,iter)
  * markovChain(lists,type,iter)
  * markovStep(item,lists,type)
+ * transitionMatrix(lists,type)
  */
 
 function orderPlaylist(playlistURI,trackURI) 
@@ -151,58 +155,40 @@ function orderPlaylist(playlistURI,trackURI)
 	return uris;
 }
 
-function rankAggregation(lists,type,iter)
-{
-	var songs = new Array();
-	lists.forEach(function(list) {
-		list.forEach(function(song) {
-			if (songs.indexOf(song) == -1)
-				songs.push(song);
-		});
-	});
-	var counts = new Array();
-	for (var i=0; i<songs.length; i++)
-		counts.push(0);
-	for (var i=0; i<iter; i++) {
-		var seed = songs[Math.floor(Math.random()*songs.length)];
-		var end = markovStep(seed,lists,type);
-		counts[songs.indexOf(end)] += 1;
-	}
-	//console.log(songs);
-	//console.log(counts);
-	var sorted = counts.slice(0).sort();
-	var top = 20;
-	for (var i=sorted.length-1; i>=0; i--){
-		if (top > 0) {
-			var ind = counts.indexOf(sorted[i]);
-			console.log(models.Track.fromURI(songs[ind]));
-			counts[ind] = -1;
-			top--;
-		}
-	}
-}
-
 // Finds a stationary distribution over Markov chain
 // Starts with a count of 10 for each item, then iterates taking Markov steps and updating distribution
 // ** Right now, runs fairly slow
 function markovChain(lists,type,iter){
+	//Initial uniform random distribution
 	var dist = new Array();
 	lists.forEach(function(list){
 		list.forEach(function(song){
 			dist[song] = 10;
 		});
 	});
+	
+	// Computes preprocessing data as necessary
+	if (type == 1 || type == 4)
+		var moves = transitionMatrix(lists,type);
+	if (type == 1) {
+		var avgrankings = avgRankings(lists);
+	}
+	
+	// For each song, computes dist[song] random steps, then builds a new distribution
 	var newdist = new Array();
 	for (var i=0; i<iter; i++) {
-		//console.log("iter");
 		for (var key in dist)
 			newdist[key] = 0;
 		for (var key in dist){
-        	if(dist.hasOwnProperty(key)){
-            	for (var j=0; j<dist[key]; j++) {
-            		var step = markovStep(key,lists,type);
-            		newdist[step]++;
-            	}
+            for (var j=0; j<dist[key]; j++) {
+          		var step;
+        		if (type == 2 || type == 3)
+        			step = markovStep(key,lists,type);
+            	if (type == 1)
+            		step = mc1Step(key,moves,avgrankings);
+            	if (type == 4) {}
+            	//console.log(key+"->"+step);
+            	newdist[step]++;
         	}
     	}
     	// New distribution taken to next iteration
@@ -218,6 +204,7 @@ function markovChain(lists,type,iter){
 function markovStep(item,lists,type)
 {
 	// MC1 method from Dwork et. al.
+	// DO NOT USE! Precompute transition matrix and use mc1Step instead.
 	if (type == 1) {
 		var nlists = 0; var totalrank = 0;
 		var songs = new Array();
@@ -258,6 +245,7 @@ function markovStep(item,lists,type)
 		}
 	}
 	// MC4 method
+	// DO NOT USE! Precompute transition matrix and use mc4Step instead.
 	if (type == 4) {
 		var songs = new Array();
 		var counts = new Array();
@@ -289,15 +277,27 @@ function markovStep(item,lists,type)
 	}
 }
 
+// Given a dictionary of arrays of moves and a dictionary of the average rankings of items, returns a random MC1 move
+function mc1Step(item,moves,avgrankings)
+{
+	var step = moves[item][Math.floor(Math.random()*moves[item].length)];
+    if (Math.random() <= 1/(avgrankings[item]))
+        step = item; 
+    return step;
+}
+
 function transitionMatrix(lists,type)
 {
 	var moves = new Array();
-	/*if (type == 1) {
+	// Computes a dictionary that returns an array of possible moves given a song
+	if (type == 1) {
 		lists.forEach(function(list){
 			list.forEach(function(song){
-				if (moves[song] == null)
-					moves[song] = new Array();
-				}
+				moves[song] = new Array();
+			});
+		});
+		lists.forEach(function(list){
+			list.forEach(function(song){
 				for (var i=0; i<list.indexOf(song); i++) {
 					if (moves[song].indexOf(list[i]) < 0)
 						moves[song].push(list[i]);
@@ -305,35 +305,6 @@ function transitionMatrix(lists,type)
 			});
 		});
 	}
-	if (type == 2) {
-		var wins = new Array();
-		var counts = new Array();
-		lists.forEach(function(list){
-			list.forEach(function(song){
-				if (wins[song] == null){
-					wins[song] = new Array();
-					counts[song] = new Array();
-				}
-				list.forEach(function(competitor){
-					if (competitor != song) {
-						if (counts[song][competitor] == null){
-							counts[song][competitor] = 0;
-							wins[song][competitor] = 0;
-						}
-						counts[song][competitor] += 1;
-						if (list.indexOf(competitor) < list.indexOf(song))
-							wins[song][competitor] += 1;
-					}
-				});
-			});
-		});
-		for (var song in wins) {
-			moves[song] = new Array();
-			for (var competitor in wins[song]) {
-				moves[song][competitor] = wins[song][competitor]/counts[song][competitor];
-			}
-		}
-	}*/
 	return moves;
 }
 
@@ -441,4 +412,79 @@ function clearHTML() {
 	info.innerHTML = '';
 	console.log(resultsList);
 	console.log(info);
+}
+
+/*
+ * HELPER FUNCTIONS
+ *
+ * randomKey(obj)
+ * avgRankings(lists)
+ */
+
+function randomKey(obj) {
+    var ret;
+    var c = 0;
+    for (var key in obj)
+        if (Math.random() < 1/++c)
+           ret = key;
+    return ret;
+}
+
+// Computes average ranking of all items in the list
+function avgRankings(lists) {
+	var counts = new Array();
+	var nlists = new Array();
+	lists.forEach(function(list){
+		list.forEach(function(song){
+			counts[song] = 0;
+			nlists[song] = 0;
+		});
+	});
+	lists.forEach(function(list){
+		list.forEach(function(song){
+			ind = list.indexOf(song);
+			if (ind >= 0) {
+				counts[song] += (ind+1);
+				nlists[song] += 1
+			}
+		});
+	});
+	for (var key in counts)
+		counts[key] = counts[key]/nlists[key];
+	return counts;
+}
+
+/*
+ * DEFUNCT CODE
+ */
+
+function rankAggregation(lists,type,iter)
+{
+	var songs = new Array();
+	lists.forEach(function(list) {
+		list.forEach(function(song) {
+			if (songs.indexOf(song) == -1)
+				songs.push(song);
+		});
+	});
+	var counts = new Array();
+	for (var i=0; i<songs.length; i++)
+		counts.push(0);
+	for (var i=0; i<iter; i++) {
+		var seed = songs[Math.floor(Math.random()*songs.length)];
+		var end = markovStep(seed,lists,type);
+		counts[songs.indexOf(end)] += 1;
+	}
+	//console.log(songs);
+	//console.log(counts);
+	var sorted = counts.slice(0).sort();
+	var top = 20;
+	for (var i=sorted.length-1; i>=0; i--){
+		if (top > 0) {
+			var ind = counts.indexOf(sorted[i]);
+			console.log(models.Track.fromURI(songs[ind]));
+			counts[ind] = -1;
+			top--;
+		}
+	}
 }
