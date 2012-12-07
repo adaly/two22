@@ -27,13 +27,6 @@ function init()
 	//console.log(markovStep("B",lists,4));
 	//rankAggregation(lists,1,100000);
 	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
-
-	/*var tm = transitionMatrix(lists,1);
-	for (var key in tm)
-		console.log(key+" : "+tm[key]);
-	var dist = markovChain(lists,1,1);
-	for (var key in dist)
-		console.log("Song: "+key+" Relevance: "+dist[key]);*/
 }
 
 /*
@@ -56,7 +49,7 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
 		//rankAggregation(lists,3,100000);
-		var dist = markovChain(lists,1,10);
+		var dist = markovChain(lists,3,100);
 		for (var key in dist)
 			console.log("Song: "+key+" Relevance: "+dist[key]);
 	}
@@ -173,6 +166,9 @@ function markovChain(lists,type,iter){
 	if (type == 1) {
 		var avgrankings = avgRankings(lists);
 	}
+	if (type == 3) {
+		var pluslists = getPluslists(lists);
+	}
 	
 	// For each song, computes dist[song] random steps, then builds a new distribution
 	var newdist = new Array();
@@ -183,7 +179,8 @@ function markovChain(lists,type,iter){
             for (var j=0; j<dist[key]; j++) {
           		var step;
         		if (type == 2 || type == 3)
-        			step = markovStep(key,lists,type);
+        			step = mc23Step(key,lists,pluslists[key],type);
+        			//step = markovStep(key,lists,type);
             	if (type == 1)
             		step = mc1Step(key,moves,avgrankings);
             	if (type == 4) {}
@@ -286,6 +283,24 @@ function mc1Step(item,moves,avgrankings)
     return step;
 }
 
+function mc23Step(item,lists,pluslists,type)
+{
+	if (type == 2 || type == 3) {
+		if (pluslists.length == 0)
+			return item;
+		var chosen = lists[pluslists[Math.floor(Math.random()*pluslists.length)]];
+		if (type == 2)
+			return chosen[Math.floor(Math.random()*(chosen.indexOf(item)+1))];
+		if (type == 3) {
+			randsong = chosen[Math.floor(Math.random()*(chosen.length))];
+			if (chosen.indexOf(randsong) < chosen.indexOf(item))
+				return randsong;
+			return item;
+		}
+	}
+}
+
+// Returns a dictionary of {song:songs ranked higher on some list}
 function transitionMatrix(lists,type)
 {
 	var moves = new Array();
@@ -306,6 +321,25 @@ function transitionMatrix(lists,type)
 		});
 	}
 	return moves;
+}
+
+// Returns a dictionary of {song:indices of lists that contain it}
+function getPluslists(lists)
+{
+	var pluslists = new Array();
+	lists.forEach(function(list){
+		list.forEach(function(song){
+			pluslists[song] = new Array();
+		});
+	});
+	lists.forEach(function(list){
+		var i = lists.indexOf(list);
+		list.forEach(function(song){
+			if (pluslists[song].indexOf(i) < 0)
+				pluslists[song].push(i);
+		});
+	});
+	return pluslists;	
 }
 
 /*
