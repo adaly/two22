@@ -27,6 +27,9 @@ function init()
 	//console.log(markovStep("B",lists,4));
 	//rankAggregation(lists,1,100000);
 	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
+	//var dist = markovChain(lists,3,100);
+	//for (var key in dist)
+	//	console.log("Song: "+key+" Relevance: "+dist[key]);
 }
 
 /*
@@ -48,7 +51,10 @@ function searchButtonClicked()
 		playlists.forEach(function(pl){
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
-		rankAggregation(lists,3,100000);
+		//rankAggregation(lists,3,100000);
+		var dist = markovChain(lists,3,100);
+		for (var key in dist)
+			console.log("Song: "+key+" Relevance: "+dist[key]);
 	}
 }
 
@@ -127,6 +133,7 @@ function searchPlaylists(keyword, trackURI)
  *
  * orderPlaylist(playlistURI,trackURI)
  * rankAggregation(lists,type,iter)
+ * markovChain(lists,type,iter)
  * markovStep(item,lists,type)
  */
 
@@ -174,6 +181,39 @@ function rankAggregation(lists,type,iter)
 		}
 	}
 }
+
+// Finds a stationary distribution over Markov chain
+// Starts with a count of 10 for each item, then iterates taking Markov steps and updating distribution
+// ** Right now, runs fairly slow
+function markovChain(lists,type,iter){
+	var dist = new Array();
+	lists.forEach(function(list){
+		list.forEach(function(song){
+			dist[song] = 10;
+		});
+	});
+	var newdist = new Array();
+	for (var i=0; i<iter; i++) {
+		//console.log("iter");
+		for (var key in dist)
+			newdist[key] = 0;
+		for (var key in dist){
+        	if(dist.hasOwnProperty(key)){
+            	for (var j=0; j<dist[key]; j++) {
+            		var step = markovStep(key,lists,type);
+            		newdist[step]++;
+            	}
+        	}
+    	}
+    	// New distribution taken to next iteration
+    	for (var key in dist) {
+    		dist[key] = newdist[key];
+    		//console.log(dist[key]);
+    	}
+	}
+	return dist;
+}
+
 
 function markovStep(item,lists,type)
 {
