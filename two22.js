@@ -62,10 +62,15 @@ function rankAggregation(lists,type,iter)
 	}
 	//console.log(songs);
 	//console.log(counts);
-	//var sorted = counts.slice(0).sort();
-	for (var i=0; i<counts.length; i++){
-		if (counts[i]>0)
-			console.log(models.Track.fromURI(songs[i]));
+	var sorted = counts.slice(0).sort();
+	var top = 20;
+	for (var i=sorted.length-1; i>=0; i--){
+		if (top > 0) {
+			var ind = counts.indexOf(sorted[i]);
+			console.log(models.Track.fromURI(songs[ind]));
+			counts[ind] = -1;
+			top--;
+		}
 	}
 }
 
@@ -111,6 +116,7 @@ function markovStep(item,lists,type)
 			return item;
 		}
 	}
+	// MC4 method
 	if (type == 4) {
 		var songs = new Array();
 		var counts = new Array();
@@ -153,7 +159,7 @@ function searchButtonClicked()
 		playlists.forEach(function(pl){
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
-		rankAggregation(lists,1,100);
+		rankAggregation(lists,2,100000);
 	}
 }
 
@@ -214,7 +220,7 @@ function searchPlaylists(keyword, trackURI)
    				console.log(playlist.data.getTrackAddTime(0));
    				if (stored_playlists[playlist.uri] == null) {
    					addPlaylistHTML(playlist);
-   					analyzePlaylist(playlist);
+   					//analyzePlaylist(playlist);
    					stored_playlists[playlist.uri] = true;
    					
    					results.push(playlist);
