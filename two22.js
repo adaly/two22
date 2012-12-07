@@ -25,7 +25,22 @@ function init()
 	var lists = new Array(x1,x2,x3,x4,x5,x6);
 	
 	//console.log(markovStep("B",lists,4));
-	rankAggregation(lists,1,100000);
+	//rankAggregation(lists,1,100000);
+	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
+}
+
+function orderPlaylist(playlistURI,trackURI) 
+{
+	var uris = new Array();
+	var pl = models.Playlist.fromURI(playlistURI);
+	var tr = models.Track.fromURI(trackURI);
+	
+	for (var i=0; i<pl.length; i++) {
+		var track = pl.get(i);
+		if (track.uri != tr.uri)
+			uris.push(track.uri);
+	}
+	return uris;
 }
 
 function rankAggregation(lists,type,iter)
@@ -45,12 +60,13 @@ function rankAggregation(lists,type,iter)
 		var end = markovStep(seed,lists,type);
 		counts[songs.indexOf(end)] += 1;
 	}
-	console.log(songs);
-	console.log(counts);
-	var sorted = counts.slice(0).sort();
-	sorted.forEach(function(entry){
-		console.log(songs[counts.indexOf(entry)]);
-	});
+	//console.log(songs);
+	//console.log(counts);
+	//var sorted = counts.slice(0).sort();
+	for (var i=0; i<counts.length; i++){
+		if (counts[i]>0)
+			console.log(models.Track.fromURI(songs[i]));
+	}
 }
 
 function markovStep(item,lists,type)
@@ -131,34 +147,48 @@ function searchButtonClicked()
 	var uri = document.getElementById('uri');
 	if (uri.value != '') {
 		clearHTML();
-		searchTrack(uri.value);
+		var playlists = searchTrack(uri.value);
 		//scoreTracks();
+		var lists = new Array();
+		playlists.forEach(function(pl){
+			lists.push(orderPlaylist(pl.uri,uri.value));
+		});
+		rankAggregation(lists,1,100);
 	}
 }
 
 //TODO: Ensure that there are no repeated playlists after merging track, artist, album results
 function searchTrack(uri) 
 {
+	var results = new Array();
 	var t = models.Track.fromURI(uri,function(track){
 		//Search by name
 		console.log('Search by track name:', track.name);
-		searchPlaylists(track.name,uri);
+		results.push(searchPlaylists(track.name,uri));
 
 		track.data.artists.forEach(function(artist) 
 		{
 			//Search by artist
 			console.log('Search by artist:', artist.name);
 			if (artist.name != track.name)
-				searchPlaylists(artist.name, uri);
+				results.push(searchPlaylists(artist.name, uri));
 		});
 
 		//Search by album
 		console.log('Search by album:',track.data.album.name);
 		if (track.data.album.name != track.name)
-			searchPlaylists(track.data.album.name, uri);
+			results.push(searchPlaylists(track.data.album.name, uri));
 
 		addTrackHTML(track);
 	});
+	
+	var pls = new Array();
+	results.forEach(function(r){
+		r.forEach(function(pl){
+			pls.push(pl);
+		});
+	});
+	return pls;
 }
 
 /*
@@ -170,26 +200,31 @@ function searchTrack(uri)
 function searchPlaylists(keyword, trackURI) 
 {
 	var search = new models.Search(keyword);
+	var results = new Array();
 	search.localResults = models.LOCALSEARCHRESULTS.IGNORE
 
 	search.searchAlbums = false;
 	search.searchArtists = false;
 	search.searchTracks = false;
-	search.pageSize = 100;
+	search.pageSize = 50;
 
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
-  			if (playlist.indexOf(trackURI) >= 0) {
+  			if (playlist.indexOf(trackURI) >= 0 && playlist.length > 1) {
    				console.log(playlist.data.getTrackAddTime(0));
    				if (stored_playlists[playlist.uri] == null) {
    					addPlaylistHTML(playlist);
    					analyzePlaylist(playlist);
    					stored_playlists[playlist.uri] = true;
+   					
+   					results.push(playlist);
    				}
    			}
   		});
 	});
 	search.appendNext();
+	
+	return results;
 }
 
 /*
