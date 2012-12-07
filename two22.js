@@ -29,6 +29,107 @@ function init()
 	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
 }
 
+/*
+ * PLAYLIST SEARCH CODE
+ *
+ * searchButtonClicked()
+ * searchTrack(uri)
+ * searchPlaylists(keyword,trackURI)
+ */
+
+function searchButtonClicked() 
+{
+	var uri = document.getElementById('uri');
+	if (uri.value != '') {
+		clearHTML();
+		var playlists = searchTrack(uri.value);
+		//scoreTracks();
+		var lists = new Array();
+		playlists.forEach(function(pl){
+			lists.push(orderPlaylist(pl.uri,uri.value));
+		});
+		rankAggregation(lists,2,100000);
+	}
+}
+
+//TODO: Ensure that there are no repeated playlists after merging track, artist, album results
+function searchTrack(uri) 
+{
+	var results = new Array();
+	var t = models.Track.fromURI(uri,function(track){
+		//Search by name
+		console.log('Search by track name:', track.name);
+		results.push(searchPlaylists(track.name,uri));
+
+		track.data.artists.forEach(function(artist) 
+		{
+			//Search by artist
+			console.log('Search by artist:', artist.name);
+			if (artist.name != track.name)
+				results.push(searchPlaylists(artist.name, uri));
+		});
+
+		//Search by album
+		console.log('Search by album:',track.data.album.name);
+		if (track.data.album.name != track.name)
+			results.push(searchPlaylists(track.data.album.name, uri));
+
+		addTrackHTML(track);
+	});
+	
+	var pls = new Array();
+	results.forEach(function(r){
+		r.forEach(function(pl){
+			pls.push(pl);
+		});
+	});
+	return pls;
+}
+
+/*
+ * Searches for all playlists by a given keyword containing the specified track, then
+ * adds them to the HTML and returns a list of their URIs
+ */
+//TODO: Modify to take a list of URIs and check if ANY of them are in the playlist
+//TODO: Expand search to other playlists created by the same user (can we search by user? I can parse the user ID from the playlist ID)
+function searchPlaylists(keyword, trackURI) 
+{
+	var search = new models.Search(keyword);
+	var results = new Array();
+	search.localResults = models.LOCALSEARCHRESULTS.IGNORE
+
+	search.searchAlbums = false;
+	search.searchArtists = false;
+	search.searchTracks = false;
+	search.pageSize = 50;
+
+	search.observe(models.EVENT.CHANGE, function() {
+  		search.playlists.forEach(function(playlist) {
+  			if (playlist.indexOf(trackURI) >= 0 && playlist.length > 1) {
+   				console.log(playlist.data.getTrackAddTime(0));
+   				if (stored_playlists[playlist.uri] == null) {
+   					addPlaylistHTML(playlist);
+   					//analyzePlaylist(playlist);
+   					stored_playlists[playlist.uri] = true;
+   					
+   					results.push(playlist);
+   				}
+   			}
+  		});
+	});
+	search.appendNext();
+	
+	return results;
+}
+
+/* 
+ * RANK AGGREGATION CODE
+ *
+ * orderPlaylist(playlistURI,trackURI)
+ * rankAggregation(lists,type,iter)
+ * markovStep(item,lists,type)
+ */
+
 function orderPlaylist(playlistURI,trackURI) 
 {
 	var uris = new Array();
@@ -148,94 +249,78 @@ function markovStep(item,lists,type)
 	}
 }
 
-function searchButtonClicked() 
+/*
+ * NAIVE COUNT RANKING CODE
+ *
+ * TrackScore(trackName,score)
+ * analyzePlaylist(playlist)
+ * scoreTracks()
+ */
+
+// Object to store track
+function TrackScore(trackName, score) 
 {
-	var uri = document.getElementById('uri');
-	if (uri.value != '') {
-		clearHTML();
-		var playlists = searchTrack(uri.value);
-		//scoreTracks();
-		var lists = new Array();
-		playlists.forEach(function(pl){
-			lists.push(orderPlaylist(pl.uri,uri.value));
-		});
-		rankAggregation(lists,2,100000);
+	this.getName = trackName;
+	this.getScore = score;
+	this.addScore = function() { this.getScore++; }
+}
+
+// goes through each playlist and adds the tracks 
+function analyzePlaylist(playlist)
+{
+	console.log("Analyzing:",playlist.name);
+	label = document.getElementById('scores');
+
+	var length = playlist.length;	
+	for (var i = 0; i < length; i++)
+	{
+		var track = playlist.get(i);
+		if(track.uri.substring(0, 12) == "spotify:user")
+			console.log("WEIRD PLAYLIST GETS IN", track.uri);
+		if(track_scores[track.uri] == null)
+		{
+			track_scores[track.uri] = new TrackScore(track.name, 1);
+		}
+		else
+		{
+			track_scores[track.uri].addScore(); 
+		}
+	}
+	console.log("Done analyzing");
+}
+
+// goes through the stored songs and scores them
+function scoreTracks()
+{
+	label = document.getElementById('scores');
+
+	for (var key in track_scores)
+	{
+		if(track_scores.hasOwnProperty(key))
+		{
+			console.log("Key", key);
+			var trackscore = track_scores[key];
+			if(trackscore != null)
+			{
+				var link = document.createElement('li');
+			   	var a = document.createElement('a');
+			   	a.href = key;
+			   	link.appendChild(a);
+			   	a.innerHTML = trackscore.getName + " " + trackscore.getScore;
+			   	label.appendChild(link);
+			}
+		}	
 	}
 }
 
-//TODO: Ensure that there are no repeated playlists after merging track, artist, album results
-function searchTrack(uri) 
-{
-	var results = new Array();
-	var t = models.Track.fromURI(uri,function(track){
-		//Search by name
-		console.log('Search by track name:', track.name);
-		results.push(searchPlaylists(track.name,uri));
-
-		track.data.artists.forEach(function(artist) 
-		{
-			//Search by artist
-			console.log('Search by artist:', artist.name);
-			if (artist.name != track.name)
-				results.push(searchPlaylists(artist.name, uri));
-		});
-
-		//Search by album
-		console.log('Search by album:',track.data.album.name);
-		if (track.data.album.name != track.name)
-			results.push(searchPlaylists(track.data.album.name, uri));
-
-		addTrackHTML(track);
-	});
-	
-	var pls = new Array();
-	results.forEach(function(r){
-		r.forEach(function(pl){
-			pls.push(pl);
-		});
-	});
-	return pls;
-}
-
 /*
- * Searches for all playlists by a given keyword containing the specified track, then
- * adds them to the HTML and returns a list of their URIs
+ * HTML MODIFICATION CODE
+ * 
+ * addPlaylistHTML(playlist)
+ * addTrackHTML(track)
+ * clearHTML()
  */
-//TODO: Modify to take a list of URIs and check if ANY of them are in the playlist
-//TODO: Expand search to other playlists created by the same user (can we search by user? I can parse the user ID from the playlist ID)
-function searchPlaylists(keyword, trackURI) 
-{
-	var search = new models.Search(keyword);
-	var results = new Array();
-	search.localResults = models.LOCALSEARCHRESULTS.IGNORE
-
-	search.searchAlbums = false;
-	search.searchArtists = false;
-	search.searchTracks = false;
-	search.pageSize = 50;
-
-	search.observe(models.EVENT.CHANGE, function() {
-  		search.playlists.forEach(function(playlist) {
-  			if (playlist.indexOf(trackURI) >= 0 && playlist.length > 1) {
-   				console.log(playlist.data.getTrackAddTime(0));
-   				if (stored_playlists[playlist.uri] == null) {
-   					addPlaylistHTML(playlist);
-   					//analyzePlaylist(playlist);
-   					stored_playlists[playlist.uri] = true;
-   					
-   					results.push(playlist);
-   				}
-   			}
-  		});
-	});
-	search.appendNext();
-	
-	return results;
-}
-
-/*
- * Creates an href for a given playlist and inserts it into the 'results' list HTML
- */
+ 
 function addPlaylistHTML(playlist) 
 {
 	resultsList = document.getElementById('results');
@@ -269,66 +354,3 @@ function clearHTML() {
 	console.log(resultsList);
 	console.log(info);
 }
-
-// Object to store track
-function TrackScore(trackName, trackUri, score) 
-{
-	this.getName = trackName;
-	this.getUri = trackUri;
-	this.getScore = score;
-	this.addScore = function() { this.getScore++; }
-}
-
-// goes through each playlist and adds the tracks 
-function analyzePlaylist(playlist)
-{
-	console.log("Analyzing:",playlist.name);
-	label = document.getElementById('scores');
-
-	var length = playlist.length;	
-	for (var i = 0; i < length; i++)
-	{
-		if(track_scores[track.uri] == null)
-		{
-			track_scores[track.uri] = new TrackScore(track.name, track.uri, 1);
-		}
-		else
-		{
-			track_scores[track.uri].addScore(); 
-		}
-	}
-	console.log("Done analyzing");
-}
-
-// goes through the stored songs and scores them
-function scoreTracks()
-{
-	label = document.getElementById('scores');
-
-	var results = []
-
-	for (var key in track_scores)
-	{
-		if(track_scores.hasOwnProperty(key))
-		{
-			results.push(track_scores[key]);
-		}	
-	}
-
-	results.sort(function(a, b) {return b.getScore - a.getScore;})
-
-	var length = results.length;
-
-	for(int i = 0; i < length; i++)
-	{
-		var trackscore = results[i];
-
-		var link = document.createElement('li');
-	   	var a = document.createElement('a');
-	   	a.href = trackscore.getUri;
-	   	link.appendChild(a);
-	   	a.innerHTML = trackscore.getName + " " + trackscore.getScore;
-	   	label.appendChild(link);
-	}
-}
-
