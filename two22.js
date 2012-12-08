@@ -41,6 +41,8 @@ function searchButtonClicked()
 {
 	var uri = document.getElementById('uri');
 	if (uri.value != '') {
+		stored_playlists = new Object();
+		track_scores = new Object();
 		clearHTML();
 		var playlists = searchTrack(uri.value);
 		//scoreTracks();
@@ -49,17 +51,16 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
 		//rankAggregation(lists,3,100000);
-		var dist = markovChain(lists,4,100);
+		/*var dist = markovChain(lists,4,100);
 		var top = topList(dist,20);
 		top.forEach(function(song){
 			var t = models.Track.fromURI(song, function(track) {
   				addTrackHTML(track);
 			});
-		});
+		});*/
 	}
 }
 
-//TODO: Ensure that there are no repeated playlists after merging track, artist, album results
 function searchTrack(uri) 
 {
 	var results = new Array();
@@ -84,10 +85,19 @@ function searchTrack(uri)
 		addTrackHTML(track);
 	});
 	
+	// Secondary search
 	var pls = new Array();
+	
 	results.forEach(function(r){
 		r.forEach(function(pl){
 			pls.push(pl);
+			for (var i=0; i<pl.length; i++) {
+				var tr = pl.get(i);
+				if (Math.random() < 0.01)
+					searchPlaylists(tr.name,uri).forEach(function(pl2){
+						pls.push(pl2);
+					});
+			}
 		});
 	});
 	return pls;
@@ -441,6 +451,7 @@ function clearHTML() {
  *
  * randomKey(obj)
  * avgRankings(lists)
+ * getUser(playlist)
  */
 
 function randomKey(obj) {
@@ -492,6 +503,13 @@ function topList(dist,num)
 		top.push(maxkey);
 	}
 	return top;
+}
+
+// Returns the user of a playlist object
+function getUser(playlist)
+{
+	var tokens = playlist.uri.split(":playlist:");
+	return tokens[0];
 }
 
 /*
