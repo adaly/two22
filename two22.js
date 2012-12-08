@@ -50,8 +50,12 @@ function searchButtonClicked()
 		});
 		//rankAggregation(lists,3,100000);
 		var dist = markovChain(lists,4,100);
-		//for (var key in dist)
-		//	console.log("Song: "+key+" Relevance: "+dist[key]);
+		var top = topList(dist,20);
+		top.forEach(function(song){
+			var t = models.Track.fromURI(song, function(track) {
+  				addTrackHTML(track);
+			});
+		});
 	}
 }
 
@@ -448,6 +452,24 @@ function avgRankings(lists) {
 	for (var key in counts)
 		counts[key] = counts[key]/nlists[key];
 	return counts;
+}
+
+// Given a distribution (dictionary of song:relevance) outputs top num songs
+function topList(dist,num)
+{
+	var top = new Array();
+	while (top.length < num){
+		var max = 0;
+		var maxkey;
+		for (var key in dist){
+			if (dist[key] > max && top.indexOf(key) < 0){
+				max = dist[key];
+				maxkey = key;
+			}
+		}
+		top.push(maxkey);
+	}
+	return top;
 }
 
 /*
