@@ -145,7 +145,7 @@ function searchPlaylists(keyword, trackURI)
  *
  */
 
-function orderPlaylist(playlistURI,trackURI) 
+function orderPlaylist(playlistURI, trackURI) 
 {
 	var uris = new Array();
 	var pl = models.Playlist.fromURI(playlistURI);
@@ -156,6 +156,28 @@ function orderPlaylist(playlistURI,trackURI)
 		if (track.uri != tr.uri)
 			uris.push(track.uri);
 	}
+	return uris;
+}
+
+// order based on time
+function orderPlaylist2(playlistURI, trackURI) 
+{
+	var uris = new Array();
+	var pl = models.Playlist.fromURI(playlistURI);
+	var tr = models.Track.fromURI(trackURI);
+	var index = pl.indexOf(tr);
+	var time = playlist.data.getTrackAddTime(index);
+
+	for (var i=0; i<pl.length; i++) 
+	{
+		var track = pl.get(i);
+		if (track.uri != tr.uri)
+		{
+			time1 = playlist.data.getTrackAddTime(i);
+			uris.push([track.uri, Math.abs(time1 - time)]);
+		}
+	}
+	// NEED TO ADD SORT HERE
 	return uris;
 }
 
