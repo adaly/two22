@@ -166,7 +166,7 @@ function markovChain(lists,type,iter){
 	if (type == 1) {
 		var avgrankings = avgRankings(lists);
 	}
-	if (type == 3) {
+	if (type == 2 || type == 3) {
 		var pluslists = getPluslists(lists);
 	}
 	
