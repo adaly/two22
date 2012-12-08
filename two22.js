@@ -49,9 +49,9 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
 		//rankAggregation(lists,3,100000);
-		var dist = markovChain(lists,3,100);
-		for (var key in dist)
-			console.log("Song: "+key+" Relevance: "+dist[key]);
+		var dist = markovChain(lists,4,100);
+		//for (var key in dist)
+		//	console.log("Song: "+key+" Relevance: "+dist[key]);
 	}
 }
 
@@ -129,9 +129,16 @@ function searchPlaylists(keyword, trackURI)
  * RANK AGGREGATION CODE
  *
  * orderPlaylist(playlistURI,trackURI)
+ *
  * markovChain(lists,type,iter)
- * markovStep(item,lists,type)
+ * mc1Step(item,moves,avgrankings)
+ * mc23Step(item,lists,pluslists,type)
+ * mc4Step(item,lists,pluslists,songlist)
+ *
  * transitionMatrix(lists,type)
+ * getPlusLists(lists)
+ * getSongLists(lists)
+ *
  */
 
 function orderPlaylist(playlistURI,trackURI) 
@@ -150,7 +157,6 @@ function orderPlaylist(playlistURI,trackURI)
 
 // Finds a stationary distribution over Markov chain
 // Starts with a count of 10 for each item, then iterates taking Markov steps and updating distribution
-// ** Right now, runs fairly slow
 function markovChain(lists,type,iter){
 	//Initial uniform random distribution
 	var dist = new Array();
@@ -161,13 +167,15 @@ function markovChain(lists,type,iter){
 	});
 	
 	// Computes preprocessing data as necessary
-	if (type == 1 || type == 4)
-		var moves = transitionMatrix(lists,type);
 	if (type == 1) {
+		var moves = transitionMatrix(lists,type);
 		var avgrankings = avgRankings(lists);
 	}
-	if (type == 2 || type == 3) {
+	if (type == 2 || type == 3 || type == 4) {
 		var pluslists = getPluslists(lists);
+	}
+	if (type == 4) {
+		var songlist = getSongList(lists);
 	}
 	
 	// For each song, computes dist[song] random steps, then builds a new distribution
@@ -180,11 +188,10 @@ function markovChain(lists,type,iter){
           		var step;
         		if (type == 2 || type == 3)
         			step = mc23Step(key,lists,pluslists[key],type);
-        			//step = markovStep(key,lists,type);
             	if (type == 1)
             		step = mc1Step(key,moves,avgrankings);
-            	if (type == 4) {}
-            	//console.log(key+"->"+step);
+            	if (type == 4)
+            		step = mc4Step(key,lists,pluslists,songlist);
             	newdist[step]++;
         	}
     	}
@@ -194,84 +201,9 @@ function markovChain(lists,type,iter){
     		//console.log(dist[key]);
     	}
 	}
+	if (type==4)
+		console.log(songlist.length);
 	return dist;
-}
-
-
-function markovStep(item,lists,type)
-{
-	// MC1 method from Dwork et. al.
-	// DO NOT USE! Precompute transition matrix and use mc1Step instead.
-	if (type == 1) {
-		var nlists = 0; var totalrank = 0;
-		var songs = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0) {
-				nlists += 1; 
-				totalrank += (list.indexOf(item)+1);
-				for (var i=0; i<list.indexOf(item); i++)
-					if (songs.indexOf(list[i]) == -1)
-						songs.push(list[i]);
-			}
-		});
-		//console.log(songs);
-		// Stay on current page with probability proportional to avg. rank
-		if (songs.length == 0 || Math.random()<=1/(totalrank/nlists))
-			return item;
-		return songs[Math.floor(Math.random()*songs.length)];
-	}
-	// MC2 and MC3 method
-	if (type == 2 || type == 3) {
-		var pluslists = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0)
-				pluslists.push(list);
-		});
-		if (pluslists.length == 0)
-			return item;
-		var chosen = pluslists[Math.floor(Math.random()*pluslists.length)];
-		//console.log(chosen);
-		if (type == 2)
-			return chosen[Math.floor(Math.random()*(chosen.indexOf(item)+1))];
-		if (type == 3) {
-			randsong = chosen[Math.floor(Math.random()*(chosen.length))];
-			//console.log(randsong);
-			if (chosen.indexOf(randsong) < chosen.indexOf(item))
-				return randsong;
-			return item;
-		}
-	}
-	// MC4 method
-	// DO NOT USE! Precompute transition matrix and use mc4Step instead.
-	if (type == 4) {
-		var songs = new Array();
-		var counts = new Array();
-		var wins = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0) {
-				list.forEach(function(song) {
-					if (song != item) { 
-						if (songs.indexOf(song) < 0) {
-							songs.push(song);
-							counts.push(0);
-							wins.push(0);
-						}
-						counts[songs.indexOf(song)] += 1;
-						if (list.indexOf(song) < list.indexOf(item))
-							wins[songs.indexOf(song)] += 1;
-					}
-				});
-			}
-		});
-		//console.log(songs);
-		//console.log(counts);
-		//console.log(wins);
-		randint = Math.floor(Math.random()*songs.length);
-		//console.log(songs[randint]);
-		if (wins[randint]/counts[randint] > 0.5)
-			return songs[randint];
-		return item;
-	}
 }
 
 // Given a dictionary of arrays of moves and a dictionary of the average rankings of items, returns a random MC1 move
@@ -298,6 +230,24 @@ function mc23Step(item,lists,pluslists,type)
 			return item;
 		}
 	}
+}
+
+function mc4Step(item,lists,pluslists,songlist)
+{
+	var randsong = songlist[Math.floor(Math.random()*songlist.length)];
+	var wins = 0; var counts = 0;
+	pluslists[item].forEach(function(listind){
+		var rind = lists[listind].indexOf(randsong);
+		if (rind >= 0){
+			counts++;
+			if (rind < lists[listind].indexOf(item))
+				wins++;
+		}
+	});
+	if (counts > 0 && wins > counts/2)
+		return randsong;
+	else
+		return item;
 }
 
 // Returns a dictionary of {song:songs ranked higher on some list}
@@ -340,6 +290,18 @@ function getPluslists(lists)
 		});
 	});
 	return pluslists;	
+}
+
+function getSongList(lists)
+{
+	var songs = new Array();
+	lists.forEach(function(list){
+		list.forEach(function(song){
+			if (songs.indexOf(song) < 0)
+				songs.push(song);
+		});
+	});
+	return songs;
 }
 
 /*
@@ -520,5 +482,81 @@ function rankAggregation(lists,type,iter)
 			counts[ind] = -1;
 			top--;
 		}
+	}
+}
+
+function markovStep(item,lists,type)
+{
+	// MC1 method from Dwork et. al.
+	// DO NOT USE! Precompute transition matrix and use mc1Step instead.
+	if (type == 1) {
+		var nlists = 0; var totalrank = 0;
+		var songs = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0) {
+				nlists += 1; 
+				totalrank += (list.indexOf(item)+1);
+				for (var i=0; i<list.indexOf(item); i++)
+					if (songs.indexOf(list[i]) == -1)
+						songs.push(list[i]);
+			}
+		});
+		//console.log(songs);
+		// Stay on current page with probability proportional to avg. rank
+		if (songs.length == 0 || Math.random()<=1/(totalrank/nlists))
+			return item;
+		return songs[Math.floor(Math.random()*songs.length)];
+	}
+	// MC2 and MC3 method
+	if (type == 2 || type == 3) {
+		var pluslists = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0)
+				pluslists.push(list);
+		});
+		if (pluslists.length == 0)
+			return item;
+		var chosen = pluslists[Math.floor(Math.random()*pluslists.length)];
+		//console.log(chosen);
+		if (type == 2)
+			return chosen[Math.floor(Math.random()*(chosen.indexOf(item)+1))];
+		if (type == 3) {
+			randsong = chosen[Math.floor(Math.random()*(chosen.length))];
+			//console.log(randsong);
+			if (chosen.indexOf(randsong) < chosen.indexOf(item))
+				return randsong;
+			return item;
+		}
+	}
+	// MC4 method
+	// DO NOT USE! Precompute transition matrix and use mc4Step instead.
+	if (type == 4) {
+		var songs = new Array();
+		var counts = new Array();
+		var wins = new Array();
+		lists.forEach(function(list) {
+			if (list.indexOf(item) >= 0) {
+				list.forEach(function(song) {
+					if (song != item) { 
+						if (songs.indexOf(song) < 0) {
+							songs.push(song);
+							counts.push(0);
+							wins.push(0);
+						}
+						counts[songs.indexOf(song)] += 1;
+						if (list.indexOf(song) < list.indexOf(item))
+							wins[songs.indexOf(song)] += 1;
+					}
+				});
+			}
+		});
+		//console.log(songs);
+		//console.log(counts);
+		//console.log(wins);
+		randint = Math.floor(Math.random()*songs.length);
+		//console.log(songs[randint]);
+		if (wins[randint]/counts[randint] > 0.5)
+			return songs[randint];
+		return item;
 	}
 }
