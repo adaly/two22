@@ -425,7 +425,14 @@ function addTrackHTML(track)
    	var a = document.createElement('a');
    	a.href = track.uri;
    	link.appendChild(a);
-   	a.innerHTML = track.name;
+   	var str = track.name+" - ";
+   	track.data.artists.forEach(function(artist){
+   		if (track.data.artists.indexOf(artist) != track.data.artists.length-1)
+   			str = str+artist.name+", ";
+   		else
+   			str = str+artist.name;
+   	});
+   	a.innerHTML = str;
    	info.appendChild(link);
 }
 
