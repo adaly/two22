@@ -23,9 +23,7 @@ function init()
 	var x5 = new Array("C","F","A","B");
 	var x6 = new Array("A","E","F","D");
 	var lists = new Array(x1,x2,x3,x4,x5,x6);
-	
-	//var or = orderPlaylist2("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
-	//console.log(or);
+
 }
 
 /*
@@ -39,6 +37,10 @@ function init()
 function searchButtonClicked() 
 {
 	var uri = document.getElementById('uri');
+	
+	var mc = getMC(); //defaults to 4
+	var to = getTimeOrdered(); //defaults to 1
+	
 	if (uri.value != '') {
 		stored_playlists = new Object();
 		track_scores = new Object();
@@ -47,10 +49,10 @@ function searchButtonClicked()
 		//scoreTracks();
 		var lists = new Array();
 		playlists.forEach(function(pl){
-			lists.push(orderPlaylist(pl.uri,uri.value));
+			lists.push(orderPlaylist(pl.uri,uri.value,to));
 		});
 
-		var dist = markovChain(lists,4,100);
+		var dist = markovChain(lists,mc,100);
 		var top = topList(dist,20);
 		top.forEach(function(song){
 			var t = models.Track.fromURI(song, function(track) {
@@ -435,6 +437,29 @@ function clearHTML() {
 	info.innerHTML = '';
 	console.log(resultsList);
 	console.log(info);
+}
+
+function getMC(){
+	var mc_box = document.getElementById('mctype');
+	var mc = 4;
+	if (!isNaN(parseInt(mc_box.value))){
+		mc = parseInt(mc_box.value);
+		if (mc < 1 && mc > 4)
+			mc = 4;
+	}
+	else
+		mc_box.value = '4';
+	return mc;
+}
+
+function getTimeOrdered(){
+	var to_box = document.getElementById('time');
+	if (to_box.value == '1')
+		return 1;
+	else {
+		to_box.value = '0';
+		return 0;
+	}
 }
 
 /*
