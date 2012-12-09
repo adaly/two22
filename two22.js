@@ -53,6 +53,7 @@ function searchButtonClicked()
 		});
 
 		var dist = markovChain(lists,mc,100);
+
 		var top = topList(dist,20);
 		top.forEach(function(song){
 			var t = models.Track.fromURI(song, function(track) {
@@ -157,33 +158,41 @@ function searchPlaylists(keyword, trackURI)
  *
  */
 
-// 1 = order by time
-// 0 = order by playlist distance
-function orderPlaylist(playlistURI, trackURI, orderType) 
+function orderPlaylist(playlistURI, trackURI) 
+{
+	var uris = new Array();
+	var pl = models.Playlist.fromURI(playlistURI);
+	var tr = models.Track.fromURI(trackURI);
+	
+	for (var i=0; i<pl.length; i++) {
+		var track = pl.get(i);
+		if (track.uri != tr.uri)
+			uris.push(track.uri);
+	}
+	return uris;
+}
+
+// order based on time
+function orderPlaylist2(playlistURI, trackURI) 
 {
 	var uris = new Array();
 	var pl = models.Playlist.fromURI(playlistURI);
 	var tr = models.Track.fromURI(trackURI);
 	var index = pl.indexOf(tr);
-	var time = pl.data.getTrackAddTime(index);
-	
-	for (var i=0; i<pl.length; i++) {
+	var time = playlist.data.getTrackAddTime(index);
+
+	for (var i=0; i<pl.length; i++) 
+	{
 		var track = pl.get(i);
-		if (track.uri != tr.uri) {
-			time1 = pl.data.getTrackAddTime(i);
-			if (orderType == 1)
-				uris.push([track.uri, Math.abs(time1 - time)]);
-			else
-				uris.push([track.uri,Math.abs(i-index)]);
+		if (track.uri != tr.uri)
+		{
+			time1 = playlist.data.getTrackAddTime(i);
+			uris.push([track.uri, Math.abs(time1 - time)]);
 		}
 	}
-	uris.sort(function(a,b) {return a[1]-b[1];})
-	
-	var result = new Array();
-	uris.forEach(function(uri){
-		result.push(uri[0]);
-	});
-	return result;
+	// NEED TO ADD SORT HERE
+	uris.sort(function(a, b) {return a[1] - b[1];})
+	return uris;
 }
 
 // Finds a stationary distribution over Markov chain
@@ -232,6 +241,8 @@ function markovChain(lists,type,iter){
     		//console.log(dist[key]);
     	}
 	}
+	if (type==4)
+		console.log(songlist.length);
 	return dist;
 }
 
@@ -426,13 +437,14 @@ function addTrackHTML(track)
    	a.href = track.uri;
    	link.appendChild(a);
    	var str = track.name+" - ";
-    track.data.artists.forEach(function(artist){
-    	if (track.data.artists.indexOf(artist) != track.data.artists.length-1)
-    		str = str+artist.name+", ";
-    	else
-    		str = str+artist.name;
-    });
-    a.innerHTML = str;
+
+   	track.data.artists.forEach(function(artist){
+   		if (track.data.artists.indexOf(artist) != track.data.artists.length-1)
+   			str = str+artist.name+", ";
+   		else
+   			str = str+artist.name;
+   	});
+   	a.innerHTML = str;
    	info.appendChild(link);
 }
 
