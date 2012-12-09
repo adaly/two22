@@ -38,92 +38,110 @@ function searchButtonClicked()
 {
 	var uri = document.getElementById('uri');
 	
-	var mc = getMC(); //defaults to 4
-	var to = getTimeOrdered(); //defaults to 1
-	
 	if (uri.value != '') {
 		stored_playlists = new Object();
 		track_scores = new Object();
 		clearHTML();
-		var playlists = searchTrack(uri.value);
+		var playlists = searchTrack(uri.value,searchCallback);
 		//scoreTracks();
-		var lists = new Array();
-		playlists.forEach(function(pl){
-			lists.push(orderPlaylist(pl.uri,uri.value,to));
-		});
-
-		// Rank aggregation
-		if (mc >=1 && mc <= 4) {
-			console.log("Markov Chain "+mc);
-			var dist = markovChain(lists,mc,100);
-
-			var top = topList(dist,20);
-			top.forEach(function(song){
-				var t = models.Track.fromURI(song, function(track) {
-  					addTrackHTML(track);
-				});
-			});
-		}
-		// Naive ordering
-		else {
-			console.log("Naive ordering");
-			playlists.forEach(function(pl){
-				analyzePlaylist(pl);
-			});
-			var top = Array();
-			for (var key in track_scores)
-				top.push([key,track_scores[key]]);
-			top.sort(function(a,b) {return a[1].getScore-b[1].getScore;});
-			for (var i=2; i<=21; i++){
-				var t = models.Track.fromURI(top[top.length-i][0], function(track) {
-  					addTrackHTML(track);
-				});	
-			}
-		}
 	}
 }
 
-function searchTrack(uri) 
+function searchCallback(playlists)
+{
+	console.log(playlists.length);
+	var mc = getMC(); //defaults to 4
+	var to = getTimeOrdered(); //defaults to 1
+	var lists = new Array();
+	playlists.forEach(function(pl){
+		lists.push(orderPlaylist(pl.uri,uri.value,to));
+	});
+	// Rank aggregation
+	if (mc >=1 && mc <= 4) {
+		console.log("Markov Chain "+mc);
+		var dist = markovChain(lists,mc,100);
+		var top = topList(dist,20);
+	}
+	// Naive ordering
+	else {
+		var scores = new Array();
+		for (var key in track_scores)
+			if (key != document.getElementById('uri').value)
+				scores[key] = track_scores[key].getScore;
+		var top = topList(scores,20);
+		console.log(top);
+	}
+	top.forEach(function(song){
+		var t = models.Track.fromURI(song, function(track) {
+  			addTrackHTML(track);
+		});
+	});
+}
+
+function searchTrack(uri,callback) 
 {
 	var results = new Array();
+	var t1 = null;
+	var t2 = null;
+	var t3 = null;
 	var t = models.Track.fromURI(uri,function(track){
 		//Search by name
 		console.log('Search by track name:', track.name);
-		results.push(searchPlaylists(track.name,uri));
+		t1 = searchPlaylists(track.name,uri);
 
 		track.data.artists.forEach(function(artist) 
 		{
 			//Search by artist
 			console.log('Search by artist:', artist.name);
-			if (artist.name != track.name)
-				results.push(searchPlaylists(artist.name, uri));
+			if (artist.name != track.name) {
+				t2 = searchPlaylists(artist.name, uri);
+			}
 		});
 
 		//Search by album
 		console.log('Search by album:',track.data.album.name);
-		if (track.data.album.name != track.name)
-			results.push(searchPlaylists(track.data.album.name, uri));
+		if (track.data.album.name != track.name) {
+			t3 = searchPlaylists(track.data.album.name, uri);
+		}
 
 		addTrackHTML(track);
 	});
 	
 	// Secondary search
 	var pls = new Array();
+	var pls2 = new Array();
+	//while (t1 == null || t2 == null || t3 == null) {}
 	
-	results.forEach(function(r){
-		r.forEach(function(pl){
+	results.push(t1);
+	results.push(t2);
+	results.push(t3);
+	
+	for (var i=0; i<results.length; i++){
+		var r = results[i];
+		for (var j=0; j<r.length; j++){
+			pl = r[j];
 			pls.push(pl);
-			for (var i=0; i<pl.length; i++) {
-				var tr = pl.get(i);
-				if (Math.random() < 0.01) {
-					searchPlaylists(tr.name,uri).forEach(function(pl2){
-						pls.push(pl2);
-					});
-				}
+		}
+	}
+	callback(pls);
+}
+
+//FOR SOME REASON, CAUSING PROBLEMS
+function secondarySearch(pls,callback)
+{
+	var pls2 = new Array();
+	for (var i=0; i<pls.length; i++){
+		var pl = pls[i];
+		for (var j=0; j<pl.length; j++) {
+			var tr = pl.get(j);
+			if (Math.random() < 0.01) {
+				searchPlaylists(tr.name,uri).forEach(function(pl2){
+					pls2.push(pl2);
+				});
 			}
-		});
-	});
-	return pls;
+		}
+	}
+	callback(pls.concat(pls2));
 }
 
 /*
@@ -146,13 +164,11 @@ function searchPlaylists(keyword, trackURI)
 	search.observe(models.EVENT.CHANGE, function() {
   		search.playlists.forEach(function(playlist) {
   			if (playlist.indexOf(trackURI) >= 0 && playlist.length > 1) {
-   				//console.log(playlist.data.getTrackAddTime(0));
    				if (stored_playlists[playlist.uri] == null) {
-   					addPlaylistHTML(playlist);
-   					//analyzePlaylist(playlist);
-   					stored_playlists[playlist.uri] = true;
-   					
+   					analyzePlaylist(playlist);
    					results.push(playlist);
+   					addPlaylistHTML(playlist);
+   					stored_playlists[playlist.uri] = true;
    				}
    			}
   		});
@@ -372,7 +388,7 @@ function TrackScore(trackName, score)
 function analyzePlaylist(playlist)
 {
 	label = document.getElementById('scores');
-
+	console.log("analysing playlist "+playlist.uri);
 	var length = playlist.length;	
 	for (var i = 0; i < length; i++){
 		var track = playlist.get(i);
@@ -383,6 +399,7 @@ function analyzePlaylist(playlist)
 			track_scores[track.uri].addScore(); 
 		}
 	}
+	console.log("done analyzing");
 }
 
 // goes through the stored songs and scores them
@@ -392,7 +409,7 @@ function scoreTracks()
 
 	for (var key in track_scores){
 		if(track_scores.hasOwnProperty(key)){
-			//console.log("Key", key);
+			console.log("Key", key);
 			var trackscore = track_scores[key];
 			if(trackscore != null){
 				var link = document.createElement('li');
@@ -444,6 +461,7 @@ function addTrackHTML(track)
    	});
    	a.innerHTML = str;
    	info.appendChild(link);
+   	console.log(str);
 }
 
 function clearHTML() {
@@ -526,7 +544,7 @@ function topList(dist,num)
 		var max = 0;
 		var maxkey;
 		for (var key in dist){
-			if (dist[key] > max && top.indexOf(key) < 0){
+			if (dist[key] >= max && top.indexOf(key) < 0){
 				max = dist[key];
 				maxkey = key;
 			}
