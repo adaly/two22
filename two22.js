@@ -24,9 +24,8 @@ function init()
 	var x6 = new Array("A","E","F","D");
 	var lists = new Array(x1,x2,x3,x4,x5,x6);
 	
-	//console.log(markovStep("B",lists,4));
-	//rankAggregation(lists,1,100000);
-	//orderPlaylist("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
+	//var or = orderPlaylist2("spotify:user:jvsirvaitis:playlist:4ETgs7NtjMIJEr1RHhdzKP","spotify:track:3rbNV2GI8Vtd8byhUtXZID");
+	//console.log(or);
 }
 
 /*
@@ -50,7 +49,7 @@ function searchButtonClicked()
 		playlists.forEach(function(pl){
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
-		//rankAggregation(lists,3,100000);
+
 		var dist = markovChain(lists,4,100);
 		var top = topList(dist,20);
 		top.forEach(function(song){
@@ -156,41 +155,33 @@ function searchPlaylists(keyword, trackURI)
  *
  */
 
-function orderPlaylist(playlistURI, trackURI) 
-{
-	var uris = new Array();
-	var pl = models.Playlist.fromURI(playlistURI);
-	var tr = models.Track.fromURI(trackURI);
-	
-	for (var i=0; i<pl.length; i++) {
-		var track = pl.get(i);
-		if (track.uri != tr.uri)
-			uris.push(track.uri);
-	}
-	return uris;
-}
-
-// order based on time
-function orderPlaylist2(playlistURI, trackURI) 
+// 1 = order by time
+// 0 = order by playlist distance
+function orderPlaylist(playlistURI, trackURI, orderType) 
 {
 	var uris = new Array();
 	var pl = models.Playlist.fromURI(playlistURI);
 	var tr = models.Track.fromURI(trackURI);
 	var index = pl.indexOf(tr);
-	var time = playlist.data.getTrackAddTime(index);
-
-	for (var i=0; i<pl.length; i++) 
-	{
+	var time = pl.data.getTrackAddTime(index);
+	
+	for (var i=0; i<pl.length; i++) {
 		var track = pl.get(i);
-		if (track.uri != tr.uri)
-		{
-			time1 = playlist.data.getTrackAddTime(i);
-			uris.push([track.uri, Math.abs(time1 - time)]);
+		if (track.uri != tr.uri) {
+			time1 = pl.data.getTrackAddTime(i);
+			if (orderType == 1)
+				uris.push([track.uri, Math.abs(time1 - time)]);
+			else
+				uris.push([track.uri,Math.abs(i-index)]);
 		}
 	}
-	// NEED TO ADD SORT HERE
-	uris.sort(function(a, b) {return a[1] - b[1];})
-	return uris;
+	uris.sort(function(a,b) {return a[1]-b[1];})
+	
+	var result = new Array();
+	uris.forEach(function(uri){
+		result.push(uri[0]);
+	});
+	return result;
 }
 
 // Finds a stationary distribution over Markov chain
@@ -239,8 +230,6 @@ function markovChain(lists,type,iter){
     		//console.log(dist[key]);
     	}
 	}
-	if (type==4)
-		console.log(songlist.length);
 	return dist;
 }
 
