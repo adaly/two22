@@ -51,13 +51,13 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value));
 		});
 		//rankAggregation(lists,3,100000);
-		/*var dist = markovChain(lists,4,100);
+		var dist = markovChain(lists,4,100);
 		var top = topList(dist,20);
 		top.forEach(function(song){
 			var t = models.Track.fromURI(song, function(track) {
   				addTrackHTML(track);
 			});
-		});*/
+		});
 	}
 }
 
@@ -93,10 +93,11 @@ function searchTrack(uri)
 			pls.push(pl);
 			for (var i=0; i<pl.length; i++) {
 				var tr = pl.get(i);
-				if (Math.random() < 0.01)
+				if (Math.random() < 0.01) {
 					searchPlaylists(tr.name,uri).forEach(function(pl2){
 						pls.push(pl2);
 					});
+				}
 			}
 		});
 	});
