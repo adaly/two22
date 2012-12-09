@@ -52,14 +52,34 @@ function searchButtonClicked()
 			lists.push(orderPlaylist(pl.uri,uri.value,to));
 		});
 
-		var dist = markovChain(lists,mc,100);
+		// Rank aggregation
+		if (mc >=1 && mc <= 4) {
+			console.log("Markov Chain "+mc);
+			var dist = markovChain(lists,mc,100);
 
-		var top = topList(dist,20);
-		top.forEach(function(song){
-			var t = models.Track.fromURI(song, function(track) {
-  				addTrackHTML(track);
+			var top = topList(dist,20);
+			top.forEach(function(song){
+				var t = models.Track.fromURI(song, function(track) {
+  					addTrackHTML(track);
+				});
 			});
-		});
+		}
+		// Naive ordering
+		else {
+			console.log("Naive ordering");
+			playlists.forEach(function(pl){
+				analyzePlaylist(pl);
+			});
+			var top = Array();
+			for (var key in track_scores)
+				top.push([key,track_scores[key]]);
+			top.sort(function(a,b) {return a[1].getScore-b[1].getScore;});
+			for (var i=2; i<=21; i++){
+				var t = models.Track.fromURI(top[top.length-i][0], function(track) {
+  					addTrackHTML(track);
+				});	
+			}
+		}
 	}
 }
 
@@ -158,41 +178,33 @@ function searchPlaylists(keyword, trackURI)
  *
  */
 
-function orderPlaylist(playlistURI, trackURI) 
-{
-	var uris = new Array();
-	var pl = models.Playlist.fromURI(playlistURI);
-	var tr = models.Track.fromURI(trackURI);
-	
-	for (var i=0; i<pl.length; i++) {
-		var track = pl.get(i);
-		if (track.uri != tr.uri)
-			uris.push(track.uri);
-	}
-	return uris;
-}
-
-// order based on time
-function orderPlaylist2(playlistURI, trackURI) 
+// 1 = order by time
+// 0 = order by playlist distance
+function orderPlaylist(playlistURI, trackURI, orderType)
 {
 	var uris = new Array();
 	var pl = models.Playlist.fromURI(playlistURI);
 	var tr = models.Track.fromURI(trackURI);
 	var index = pl.indexOf(tr);
-	var time = playlist.data.getTrackAddTime(index);
+	var time = pl.data.getTrackAddTime(index);
 
-	for (var i=0; i<pl.length; i++) 
-	{
+	for (var i=0; i<pl.length; i++) {
 		var track = pl.get(i);
-		if (track.uri != tr.uri)
-		{
-			time1 = playlist.data.getTrackAddTime(i);
-			uris.push([track.uri, Math.abs(time1 - time)]);
+		if (track.uri != tr.uri) {
+			time1 = pl.data.getTrackAddTime(i);
+			if (orderType == 1)
+				uris.push([track.uri, Math.abs(time1 - time)]);
+			else
+				uris.push([track.uri,Math.abs(i-index)]);
 		}
 	}
-	// NEED TO ADD SORT HERE
-	uris.sort(function(a, b) {return a[1] - b[1];})
-	return uris;
+	uris.sort(function(a,b) {return a[1]-b[1];})
+
+	var result = new Array();
+	uris.forEach(function(uri){
+			result.push(uri[0]);
+	});
+	return result;
 }
 
 // Finds a stationary distribution over Markov chain
@@ -236,13 +248,9 @@ function markovChain(lists,type,iter){
         	}
     	}
     	// New distribution taken to next iteration
-    	for (var key in dist) {
+    	for (var key in dist)
     		dist[key] = newdist[key];
-    		//console.log(dist[key]);
-    	}
 	}
-	if (type==4)
-		console.log(songlist.length);
 	return dist;
 }
 
@@ -363,25 +371,18 @@ function TrackScore(trackName, score)
 // goes through each playlist and adds the tracks 
 function analyzePlaylist(playlist)
 {
-	console.log("Analyzing:",playlist.name);
 	label = document.getElementById('scores');
 
 	var length = playlist.length;	
-	for (var i = 0; i < length; i++)
-	{
+	for (var i = 0; i < length; i++){
 		var track = playlist.get(i);
-		if(track.uri.substring(0, 12) == "spotify:user")
-			console.log("WEIRD PLAYLIST GETS IN", track.uri);
-		if(track_scores[track.uri] == null)
-		{
+		if(track_scores[track.uri] == null){
 			track_scores[track.uri] = new TrackScore(track.name, 1);
 		}
-		else
-		{
+		else{
 			track_scores[track.uri].addScore(); 
 		}
 	}
-	console.log("Done analyzing");
 }
 
 // goes through the stored songs and scores them
@@ -389,14 +390,11 @@ function scoreTracks()
 {
 	label = document.getElementById('scores');
 
-	for (var key in track_scores)
-	{
-		if(track_scores.hasOwnProperty(key))
-		{
-			console.log("Key", key);
+	for (var key in track_scores){
+		if(track_scores.hasOwnProperty(key)){
+			//console.log("Key", key);
 			var trackscore = track_scores[key];
-			if(trackscore != null)
-			{
+			if(trackscore != null){
 				var link = document.createElement('li');
 			   	var a = document.createElement('a');
 			   	a.href = key;
@@ -454,8 +452,6 @@ function clearHTML() {
 
 	resultsList.innerHTML = '';
 	info.innerHTML = '';
-	console.log(resultsList);
-	console.log(info);
 }
 
 function getMC(){
@@ -463,7 +459,7 @@ function getMC(){
 	var mc = 4;
 	if (!isNaN(parseInt(mc_box.value))){
 		mc = parseInt(mc_box.value);
-		if (mc < 1 || mc > 4)
+		if (mc < 0 || mc > 4)
 			mc = 4;
 	}
 	else
@@ -545,115 +541,4 @@ function getUser(playlist)
 {
 	var tokens = playlist.uri.split(":playlist:");
 	return tokens[0];
-}
-
-/*
- * DEFUNCT CODE
- */
-
-function rankAggregation(lists,type,iter)
-{
-	var songs = new Array();
-	lists.forEach(function(list) {
-		list.forEach(function(song) {
-			if (songs.indexOf(song) == -1)
-				songs.push(song);
-		});
-	});
-	var counts = new Array();
-	for (var i=0; i<songs.length; i++)
-		counts.push(0);
-	for (var i=0; i<iter; i++) {
-		var seed = songs[Math.floor(Math.random()*songs.length)];
-		var end = markovStep(seed,lists,type);
-		counts[songs.indexOf(end)] += 1;
-	}
-	//console.log(songs);
-	//console.log(counts);
-	var sorted = counts.slice(0).sort();
-	var top = 20;
-	for (var i=sorted.length-1; i>=0; i--){
-		if (top > 0) {
-			var ind = counts.indexOf(sorted[i]);
-			console.log(models.Track.fromURI(songs[ind]));
-			counts[ind] = -1;
-			top--;
-		}
-	}
-}
-
-function markovStep(item,lists,type)
-{
-	// MC1 method from Dwork et. al.
-	// DO NOT USE! Precompute transition matrix and use mc1Step instead.
-	if (type == 1) {
-		var nlists = 0; var totalrank = 0;
-		var songs = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0) {
-				nlists += 1; 
-				totalrank += (list.indexOf(item)+1);
-				for (var i=0; i<list.indexOf(item); i++)
-					if (songs.indexOf(list[i]) == -1)
-						songs.push(list[i]);
-			}
-		});
-		//console.log(songs);
-		// Stay on current page with probability proportional to avg. rank
-		if (songs.length == 0 || Math.random()<=1/(totalrank/nlists))
-			return item;
-		return songs[Math.floor(Math.random()*songs.length)];
-	}
-	// MC2 and MC3 method
-	if (type == 2 || type == 3) {
-		var pluslists = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0)
-				pluslists.push(list);
-		});
-		if (pluslists.length == 0)
-			return item;
-		var chosen = pluslists[Math.floor(Math.random()*pluslists.length)];
-		//console.log(chosen);
-		if (type == 2)
-			return chosen[Math.floor(Math.random()*(chosen.indexOf(item)+1))];
-		if (type == 3) {
-			randsong = chosen[Math.floor(Math.random()*(chosen.length))];
-			//console.log(randsong);
-			if (chosen.indexOf(randsong) < chosen.indexOf(item))
-				return randsong;
-			return item;
-		}
-	}
-	// MC4 method
-	// DO NOT USE! Precompute transition matrix and use mc4Step instead.
-	if (type == 4) {
-		var songs = new Array();
-		var counts = new Array();
-		var wins = new Array();
-		lists.forEach(function(list) {
-			if (list.indexOf(item) >= 0) {
-				list.forEach(function(song) {
-					if (song != item) { 
-						if (songs.indexOf(song) < 0) {
-							songs.push(song);
-							counts.push(0);
-							wins.push(0);
-						}
-						counts[songs.indexOf(song)] += 1;
-						if (list.indexOf(song) < list.indexOf(item))
-							wins[songs.indexOf(song)] += 1;
-					}
-				});
-			}
-		});
-		//console.log(songs);
-		//console.log(counts);
-		//console.log(wins);
-		randint = Math.floor(Math.random()*songs.length);
-		//console.log(songs[randint]);
-		if (wins[randint]/counts[randint] > 0.5)
-			return songs[randint];
-		return item;
-	}
 }
