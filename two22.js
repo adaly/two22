@@ -188,6 +188,7 @@ function orderPlaylist2(playlistURI, trackURI)
 		}
 	}
 	// NEED TO ADD SORT HERE
+	uris.sort(function(a, b) {return a[1] - b[1];})
 	return uris;
 }
 
