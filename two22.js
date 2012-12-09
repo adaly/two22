@@ -451,7 +451,7 @@ function getMC(){
 	var mc = 4;
 	if (!isNaN(parseInt(mc_box.value))){
 		mc = parseInt(mc_box.value);
-		if (mc < 1 && mc > 4)
+		if (mc < 1 || mc > 4)
 			mc = 4;
 	}
 	else
