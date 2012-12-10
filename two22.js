@@ -64,12 +64,12 @@ function searchCallback(playlists)
 	}
 	// Naive ordering
 	else {
+		console.log("Naive ordering");
 		var scores = new Array();
 		for (var key in track_scores)
 			if (key != document.getElementById('uri').value)
 				scores[key] = track_scores[key].getScore;
 		var top = topList(scores,20);
-		console.log(top);
 	}
 	top.forEach(function(song){
 		var t = models.Track.fromURI(song, function(track) {
@@ -81,9 +81,9 @@ function searchCallback(playlists)
 function searchTrack(uri,callback) 
 {
 	var results = new Array();
-	var t1 = null;
-	var t2 = null;
-	var t3 = null;
+	var t1 = new Array();
+	var t2 = new Array();
+	var t3 = new Array();
 	var t = models.Track.fromURI(uri,function(track){
 		//Search by name
 		console.log('Search by track name:', track.name);
@@ -109,9 +109,7 @@ function searchTrack(uri,callback)
 	
 	// Secondary search
 	var pls = new Array();
-	var pls2 = new Array();
-	//while (t1 == null || t2 == null || t3 == null) {}
-	
+		
 	results.push(t1);
 	results.push(t2);
 	results.push(t3);
@@ -388,7 +386,6 @@ function TrackScore(trackName, score)
 function analyzePlaylist(playlist)
 {
 	label = document.getElementById('scores');
-	console.log("analysing playlist "+playlist.uri);
 	var length = playlist.length;	
 	for (var i = 0; i < length; i++){
 		var track = playlist.get(i);
@@ -399,7 +396,6 @@ function analyzePlaylist(playlist)
 			track_scores[track.uri].addScore(); 
 		}
 	}
-	console.log("done analyzing");
 }
 
 // goes through the stored songs and scores them
