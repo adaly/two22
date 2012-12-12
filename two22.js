@@ -66,9 +66,12 @@ function searchCallback(playlists)
 	else {
 		console.log("Naive ordering");
 		var scores = new Array();
-		for (var key in track_scores)
+		var count = 0;
+		for (var key in track_scores){
+			count++;
 			if (key != document.getElementById('uri').value)
 				scores[key] = track_scores[key].getScore;
+		}
 		var top = topList(scores,20);
 	}
 	top.forEach(function(song){
